@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PQC Supremacy Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+
+</head>
+<body>
+
+<div class="main">
+  <h1>🔐 PQC Supremacy Live Metrics</h1>
+  <p class="muted">Comparing Classical vs PQC Crypto in Real-Time</p>
+
+  <div class="grid">
+    <div class="card hover">
+      <h3>PQC (Kyber Hybrid)</h3>
+      <div id="pqcBox"></div>
+    </div>
+
+    <div class="card hover">
+      <h3>RSA-2048</h3>
+      <div id="rsaBox"></div>
+    </div>
+
+    <div class="card hover">
+      <h3>X25519 (ECDH)</h3>
+      <div id="ecdhBox"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function load(url, boxid) {
+  const r = await fetch(url);
+  const d = await r.json();
+  const box = document.getElementById(boxid);
+  box.innerHTML = "";
+  for (let k in d) {
+    box.innerHTML += `<div class="kv"><span>${k}</span><span>${d[k]}</span></div>`
+  }
+}
+
+function refresh() {
+  load("/metrics/pqc", "pqcBox");
+  load("/metrics/rsa", "rsaBox");
+  load("/metrics/ecdh", "ecdhBox");
+}
+
+refresh();
+setInterval(refresh, 4000);
+</script>
+
+</body>
+</html>
