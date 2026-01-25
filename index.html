@@ -3,7 +3,6 @@
 <head>
   <title>PQC Supremacy Dashboard</title>
   <link rel="stylesheet" href="/static/style.css">
-
 </head>
 <body>
 
@@ -12,20 +11,22 @@
   <p class="muted">Comparing Classical vs PQC Crypto in Real-Time</p>
 
   <div class="grid">
+    
     <div class="card hover">
-      <h3>PQC (Kyber Hybrid)</h3>
+      <h3>PQC (Kyber Hybrid) <span class="badge ok">Quantum Safe</span></h3>
       <div id="pqcBox"></div>
     </div>
 
     <div class="card hover">
-      <h3>RSA-2048</h3>
+      <h3>RSA-2048 <span class="badge danger">Broken by Shor</span></h3>
       <div id="rsaBox"></div>
     </div>
 
     <div class="card hover">
-      <h3>X25519 (ECDH)</h3>
+      <h3>X25519 (ECDH) <span class="badge danger">Broken by Shor</span></h3>
       <div id="ecdhBox"></div>
     </div>
+
   </div>
 </div>
 
