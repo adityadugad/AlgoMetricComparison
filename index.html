@@ -3,6 +3,8 @@
 <head>
   <title>PQC Supremacy Dashboard</title>
   <link rel="stylesheet" href="/static/style.css">
+  <!-- Include Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -11,42 +13,133 @@
 
 <div class="grid">
 
+  <!-- PQC Card -->
   <div class="card">
     <h3>PQC (Kyber Hybrid) Quantum Safe</h3>
     <div id="pqc"></div>
+    <canvas id="pqcChart" height="200"></canvas>
   </div>
 
+  <!-- RSA Card -->
   <div class="card">
     <h3>RSA-2048 Broken by Shor</h3>
     <div id="rsa"></div>
+    <canvas id="rsaChart" height="200"></canvas>
   </div>
 
+  <!-- X25519 Card -->
   <div class="card">
     <h3>X25519 (ECDH) Broken by Shor</h3>
     <div id="ecdh"></div>
+    <canvas id="ecdhChart" height="200"></canvas>
   </div>
 
 </div>
 
 <script>
-async function load(url, box) {
-  const res = await fetch(url)
-  const data = await res.json()
-  const el = document.getElementById(box)
-  el.innerHTML = ""
-  for (const k in data) {
-    el.innerHTML += `<div class="kv"><span>${k}</span><span>${data[k]}</span></div>`
+  // -----------------------------
+  // Function to load key-value metrics
+  // -----------------------------
+  async function load(url, box) {
+    const res = await fetch(url);
+    const data = await res.json();
+    const el = document.getElementById(box);
+    el.innerHTML = "";
+    for (const k in data) {
+      el.innerHTML += `<div class="kv"><span>${k}</span><span>${data[k]}</span></div>`;
+    }
   }
-}
 
-function refresh() {
-  load("/metrics/pqc", "pqc")
-  load("/metrics/rsa", "rsa")
-  load("/metrics/ecdh", "ecdh")
-}
+  // -----------------------------
+  // Initialize Chart.js charts
+  // -----------------------------
+  const charts = {};
 
-refresh()
-setInterval(refresh, 3000)
+  function initCharts() {
+    charts.pqc = new Chart(document.getElementById('pqcChart'), {
+      type: 'bar',
+      data: {
+        labels: ['KeyGen', 'Encap', 'Decap'],
+        datasets: [{
+          label: 'PQC Time (ms)',
+          data: [0,0,0],
+          backgroundColor: '#22d3ee'
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    charts.rsa = new Chart(document.getElementById('rsaChart'), {
+      type: 'bar',
+      data: {
+        labels: ['KeyGen', 'Encrypt', 'Decrypt'],
+        datasets: [{
+          label: 'RSA Time (ms)',
+          data: [0,0,0],
+          backgroundColor: '#ef4444'
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    charts.ecdh = new Chart(document.getElementById('ecdhChart'), {
+      type: 'bar',
+      data: {
+        labels: ['KeyGen', 'Exchange'],
+        datasets: [{
+          label: 'X25519 Time (ms)',
+          data: [0,0],
+          backgroundColor: '#22c55e'
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  }
+
+  initCharts();
+
+  // -----------------------------
+  // Update charts dynamically
+  // -----------------------------
+  async function updateCharts() {
+    const pqcData = await fetch('/metrics/pqc').then(r => r.json());
+    const rsaData = await fetch('/metrics/rsa').then(r => r.json());
+    const ecdhData = await fetch('/metrics/ecdh').then(r => r.json());
+
+    charts.pqc.data.datasets[0].data = [
+      pqcData.keygen_ms,
+      pqcData.encap_ms,
+      pqcData.decap_ms
+    ];
+    charts.pqc.update();
+
+    charts.rsa.data.datasets[0].data = [
+      rsaData.keygen_ms,
+      rsaData.encrypt_ms,
+      rsaData.decrypt_ms
+    ];
+    charts.rsa.update();
+
+    charts.ecdh.data.datasets[0].data = [
+      ecdhData.keygen_ms,
+      ecdhData.exchange_ms
+    ];
+    charts.ecdh.update();
+  }
+
+  // -----------------------------
+  // Refresh all metrics and charts
+  // -----------------------------
+  function refresh() {
+    load("/metrics/pqc", "pqc");
+    load("/metrics/rsa", "rsa");
+    load("/metrics/ecdh", "ecdh");
+    updateCharts();
+  }
+
+  refresh();
+  setInterval(refresh, 3000); // update every 3 seconds
+
 </script>
 
 </body>
