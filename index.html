@@ -13,24 +13,39 @@
 
 <div class="grid">
 
-  <!-- PQC Card -->
-  <div class="card">
+  <!-- PQC Metrics Card -->
+  <div class="card" id="pqc-metrics">
     <h3>PQC (Kyber Hybrid) Quantum Safe</h3>
     <div id="pqc"></div>
+  </div>
+
+  <!-- PQC Chart Card -->
+  <div class="card">
+    <h3>PQC Performance Over Time</h3>
     <canvas id="pqcChart" height="200"></canvas>
   </div>
 
-  <!-- RSA Card -->
-  <div class="card">
+  <!-- RSA Metrics Card -->
+  <div class="card" id="rsa-metrics">
     <h3>RSA-2048 Broken by Shor</h3>
     <div id="rsa"></div>
+  </div>
+
+  <!-- RSA Chart Card -->
+  <div class="card">
+    <h3>RSA Performance Over Time</h3>
     <canvas id="rsaChart" height="200"></canvas>
   </div>
 
-  <!-- X25519 Card -->
-  <div class="card">
+  <!-- X25519 Metrics Card -->
+  <div class="card" id="ecdh-metrics">
     <h3>X25519 (ECDH) Broken by Shor</h3>
     <div id="ecdh"></div>
+  </div>
+
+  <!-- X25519 Chart Card -->
+  <div class="card">
+    <h3>X25519 Performance Over Time</h3>
     <canvas id="ecdhChart" height="200"></canvas>
   </div>
 
@@ -46,89 +61,117 @@
     const el = document.getElementById(box);
     el.innerHTML = "";
     for (const k in data) {
-      el.innerHTML += `<div class="kv"><span>${k}</span><span>${data[k]}</span></div>`;
+      if (!k.endsWith('_ms')) { // skip numeric metrics for charts
+        el.innerHTML += `<div class="kv"><span>${k}</span><span>${data[k]}</span></div>`;
+      }
     }
   }
 
   // -----------------------------
-  // Initialize Chart.js charts
+  // Initialize line charts with history
   // -----------------------------
   const charts = {};
+  const labels = [];
+  const history = {
+    pqc: { keygen: [], encap: [], decap: [] },
+    rsa: { keygen: [], encrypt: [], decrypt: [] },
+    ecdh: { keygen: [], exchange: [] },
+  };
 
   function initCharts() {
     charts.pqc = new Chart(document.getElementById('pqcChart'), {
-      type: 'bar',
+      type: 'line',
       data: {
-        labels: ['KeyGen', 'Encap', 'Decap'],
-        datasets: [{
-          label: 'PQC Time (ms)',
-          data: [0,0,0],
-          backgroundColor: '#22d3ee'
-        }]
+        labels,
+        datasets: [
+          { label: 'KeyGen', data: [], borderColor: '#22d3ee', fill: false },
+          { label: 'Encap', data: [], borderColor: '#3b82f6', fill: false },
+          { label: 'Decap', data: [], borderColor: '#06b6d4', fill: false },
+        ]
       },
-      options: { responsive: true, plugins: { legend: { display: false } } }
+      options: { responsive: true }
     });
 
     charts.rsa = new Chart(document.getElementById('rsaChart'), {
-      type: 'bar',
+      type: 'line',
       data: {
-        labels: ['KeyGen', 'Encrypt', 'Decrypt'],
-        datasets: [{
-          label: 'RSA Time (ms)',
-          data: [0,0,0],
-          backgroundColor: '#ef4444'
-        }]
+        labels,
+        datasets: [
+          { label: 'KeyGen', data: [], borderColor: '#ef4444', fill: false },
+          { label: 'Encrypt', data: [], borderColor: '#f87171', fill: false },
+          { label: 'Decrypt', data: [], borderColor: '#dc2626', fill: false },
+        ]
       },
-      options: { responsive: true, plugins: { legend: { display: false } } }
+      options: { responsive: true }
     });
 
     charts.ecdh = new Chart(document.getElementById('ecdhChart'), {
-      type: 'bar',
+      type: 'line',
       data: {
-        labels: ['KeyGen', 'Exchange'],
-        datasets: [{
-          label: 'X25519 Time (ms)',
-          data: [0,0],
-          backgroundColor: '#22c55e'
-        }]
+        labels,
+        datasets: [
+          { label: 'KeyGen', data: [], borderColor: '#22c55e', fill: false },
+          { label: 'Exchange', data: [], borderColor: '#16a34a', fill: false },
+        ]
       },
-      options: { responsive: true, plugins: { legend: { display: false } } }
+      options: { responsive: true }
     });
   }
 
   initCharts();
 
   // -----------------------------
-  // Update charts dynamically
+  // Update charts with history
   // -----------------------------
   async function updateCharts() {
     const pqcData = await fetch('/metrics/pqc').then(r => r.json());
     const rsaData = await fetch('/metrics/rsa').then(r => r.json());
     const ecdhData = await fetch('/metrics/ecdh').then(r => r.json());
 
-    charts.pqc.data.datasets[0].data = [
-      pqcData.keygen_ms,
-      pqcData.encap_ms,
-      pqcData.decap_ms
-    ];
+    const timestamp = new Date().toLocaleTimeString();
+    labels.push(timestamp);
+    if (labels.length > 20) labels.shift(); // keep last 20 points
+
+    // Update history arrays
+    history.pqc.keygen.push(pqcData.keygen_ms);
+    history.pqc.encap.push(pqcData.encap_ms);
+    history.pqc.decap.push(pqcData.decap_ms);
+    history.rsa.keygen.push(rsaData.keygen_ms);
+    history.rsa.encrypt.push(rsaData.encrypt_ms);
+    history.rsa.decrypt.push(rsaData.decrypt_ms);
+    history.ecdh.keygen.push(ecdhData.keygen_ms);
+    history.ecdh.exchange.push(ecdhData.exchange_ms);
+
+    // Keep last 20 points
+    for (const h in history) {
+      for (const k in history[h]) {
+        if (history[h][k].length > 20) history[h][k].shift();
+      }
+    }
+
+    // Update PQC chart
+    charts.pqc.data.labels = labels;
+    charts.pqc.data.datasets[0].data = history.pqc.keygen;
+    charts.pqc.data.datasets[1].data = history.pqc.encap;
+    charts.pqc.data.datasets[2].data = history.pqc.decap;
     charts.pqc.update();
 
-    charts.rsa.data.datasets[0].data = [
-      rsaData.keygen_ms,
-      rsaData.encrypt_ms,
-      rsaData.decrypt_ms
-    ];
+    // Update RSA chart
+    charts.rsa.data.labels = labels;
+    charts.rsa.data.datasets[0].data = history.rsa.keygen;
+    charts.rsa.data.datasets[1].data = history.rsa.encrypt;
+    charts.rsa.data.datasets[2].data = history.rsa.decrypt;
     charts.rsa.update();
 
-    charts.ecdh.data.datasets[0].data = [
-      ecdhData.keygen_ms,
-      ecdhData.exchange_ms
-    ];
+    // Update ECDH chart
+    charts.ecdh.data.labels = labels;
+    charts.ecdh.data.datasets[0].data = history.ecdh.keygen;
+    charts.ecdh.data.datasets[1].data = history.ecdh.exchange;
     charts.ecdh.update();
   }
 
   // -----------------------------
-  // Refresh all metrics and charts
+  // Refresh metrics and charts
   // -----------------------------
   function refresh() {
     load("/metrics/pqc", "pqc");
@@ -138,7 +181,7 @@
   }
 
   refresh();
-  setInterval(refresh, 3000); // update every 3 seconds
+  setInterval(refresh, 3000); // every 3 seconds
 
 </script>
 
